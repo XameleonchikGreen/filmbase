@@ -33,3 +33,30 @@ def ru_plural(value, variants):
     else:
         variant = 2
     return variants[variant]
+
+
+@register.filter
+def group_admin_or_superuser(user, group):
+    memberships = user.membership_set.filter(group=group)
+    if memberships.count() == 0:
+        return user.is_superuser
+    return user.is_superuser or memberships[0].is_admin
+
+
+@register.filter
+def not_in_group(user, group):
+    memberships = user.membership_set.filter(group=group)
+    return memberships.count() == 0
+
+
+@register.filter
+def group_waiter(user, group):
+    memberships = user.membership_set.filter(group=group)
+    return memberships.count() > 0 and memberships[0].is_waiter
+
+
+@register.filter
+def in_group_or_superuser(user, group):
+    memberships = user.membership_set.filter(group=group)
+    return (user.is_superuser or
+            (memberships.count() > 0 and not memberships[0].is_waiter))

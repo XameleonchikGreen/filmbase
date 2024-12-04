@@ -1,0 +1,27 @@
+{% load films_tags %}
+
+<div class="card mb-3">
+  <div class="card-body">
+    <p class="card-text position-relative">
+      <small class="text-body-secondary">
+        {{ mess.user }}, {{mess.created_at }}
+      </small>
+      {% if user == mess.user %}
+        <a href="{% url 'films:message_update' mess.id %}">
+          <i class="bi-pencil-square"></i>
+        </a>
+      {% endif %}
+      {% if user == mess.author or user|group_admin_or_superuser:mess.conversation.group %}
+        <a href="{% url 'films:message_delete' mess.id %}" class="btn btn-danger btn-sm position-absolute end-0">
+          <i class="bi-trash"></i>
+        </a>
+      {% endif %}
+    </p>
+    {% if mess.image %}
+      <img src="{{ mess.image.url }}" alt="Изображение к комментарию" class="card-img-top" />
+    {% endif %}
+    <div class="card-body">
+      <p class="card-text">{{ mess.text }}</p>
+    </div>
+  </div>
+</div>

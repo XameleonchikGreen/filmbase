@@ -1,14 +1,33 @@
 from dal import autocomplete
 from django.shortcuts import get_object_or_404, redirect, render
-from django.contrib.auth.decorators import user_passes_test
-from .models import Country, Film, Genre, Person
-from .forms import CountryForm, GenreForm, FilmForm, PersonForm
+from django.contrib.auth.decorators import user_passes_test, login_required
+from .models import Country, Film, Genre, Person, Group, Conversation, Message, Membership
+from .forms import CountryForm, GenreForm, FilmForm, PersonForm, ConversationForm, MessageForm
 from .helpers import paginate
 from django.contrib import messages
+from django.utils import timezone
 
 
 def check_admin(user):
     return user.is_superuser
+
+
+def check_superuser_or_admin(user, group):
+    memberships = user.membership_set.filter(group=group)
+    if memberships.count() == 0:
+        return user.is_superuser
+    return user.is_superuser or memberships[0].is_admin
+
+
+def check_superuser_or_participant(user, group):
+    memberships = user.membership_set.filter(group=group)
+    return (user.is_superuser or
+            (memberships.count() > 0 and not memberships[0].is_waiter))
+
+
+def check_superuser_author_admin(user, message):
+    return (check_superuser_or_admin(user, message.conversation.group)
+            or user == message.user)
 
 
 def country_list(request):
@@ -228,6 +247,302 @@ def person_delete(request, id):
         return redirect('films:person_list')
     return render(request, 'films/person/delete.html',
                   {'person': person})
+
+
+@login_required
+def group_create(request, id):
+    film = get_object_or_404(Film, id=id)
+
+    group = Group.objects.create(
+        name=film.name + ' группа',
+        film=film
+    )
+    group.save()
+
+    member = Membership.objects.create(
+        user=request.user,
+        group=group
+    )
+    member.is_admin = True
+    member.is_waiter = False
+    member.save()
+
+    messages.success(request, 'Группа создана')
+    return redirect('films:film_detail', id=id)
+
+
+def group_detail(request, id):
+    group = get_object_or_404(Group, id=id)
+
+    convs = group.conversation_set.all()
+    convs = paginate(request, convs, per=6)
+
+    memberships = group.membership_set.all()
+
+    admins = memberships.filter(is_admin=True)
+    admins = paginate(request, admins, per=5)
+
+    members = memberships.filter(is_admin=False, is_waiter=False)
+    members = paginate(request, members, per=5)
+
+    waiters = memberships.filter(is_waiter=True)
+    waiters = paginate(request, waiters, per=5)
+
+    return render(request, 'films/group/detail.html',
+                  {'group': group, 'admins': admins, 'members': members,
+                   'waiters': waiters, 'convs': convs})
+
+
+@login_required
+def group_wait(request, id):
+    group = get_object_or_404(Group, id=id)
+
+    member = Membership.objects.create(
+        user=request.user,
+        group=group
+    )
+    member.save()
+
+    messages.success(request, 'Ваш запрос отправлен')
+    return redirect('films:group_detail', id=group.id)
+
+
+def group_add_user(request, group_id, member_id):
+    group = get_object_or_404(Group, id=group_id)
+
+    if not check_superuser_or_admin(request.user, group):
+        messages.error(request, 'У вас недостаточно прав')
+        return redirect('films:group_detail', id=group_id)
+
+    member = get_object_or_404(Membership, id=member_id)
+    member.is_waiter = False
+    member.save()
+
+    messages.success(request, 'Пользователь добавлен в группу')
+    return redirect('films:group_detail', id=group_id)
+
+
+def group_delete_user(request, group_id, member_id):
+    group = get_object_or_404(Group, id=group_id)
+
+    if not check_superuser_or_admin(request.user, group):
+        messages.error(request, 'У вас недостаточно прав')
+        return redirect('films:group_detail', id=group_id)
+
+    member = get_object_or_404(Membership, id=member_id)
+
+    if request.method == 'POST':
+        member.delete()
+        messages.success(request, 'Пользователь удалён из группы')
+        return redirect('films:group_detail', id=group_id)
+    return render(request, 'films/group/delete_user.html',
+                  {'group': group, 'member': member})
+
+
+def group_new_admin(request, group_id, member_id):
+    group = get_object_or_404(Group, id=group_id)
+
+    if not check_superuser_or_admin(request.user, group):
+        messages.error(request, 'У вас недостаточно прав')
+        return redirect('films:group_detail', id=group_id)
+
+    new_admin = get_object_or_404(Membership, id=member_id)
+
+    if request.method == 'POST':
+        new_admin.is_admin = True
+        new_admin.save()
+        messages.success(request, 'Администратор добавлен')
+        return redirect('films:group_detail', id=group_id)
+    return render(request, 'films/group/new_admin.html',
+                  {'group': group, 'new_admin': new_admin})
+
+
+def group_delete_admin(request, group_id, member_id):
+    group = get_object_or_404(Group, id=group_id)
+
+    if not check_superuser_or_admin(request.user, group):
+        messages.error(request, 'У вас недостаточно прав')
+        return redirect('films:group_detail', id=group_id)
+
+    new_admin = get_object_or_404(Membership, id=member_id)
+
+    if request.method == 'POST':
+        new_admin.is_admin = False
+        new_admin.save()
+        messages.success(request, 'Администратор удалён')
+        return redirect('films:group_detail', id=group_id)
+    return render(request, 'films/group/delete_admin.html',
+                  {'group': group, 'new_admin': new_admin})
+
+
+def group_delete(request, id):
+    film = get_object_or_404(Film, id=id)
+    group = film.group
+
+    if not check_superuser_or_admin(request.user, group):
+        messages.error(request, 'У вас недостаточно прав')
+        return redirect('films:film_detail', id=id)
+
+    if request.method == 'POST':
+        group.delete()
+        messages.success(request, 'Группа удалена')
+        return redirect('films:film_detail', id=id)
+    return render(request, 'films/group/delete.html',
+                  {'film': film})
+
+
+def conversation_create(request, id):
+    group = get_object_or_404(Group, id=id)
+
+    if not check_superuser_or_admin(request.user, group):
+        messages.error(request, 'У вас недостаточно прав')
+        return redirect('films:group_detail', id=group.film.id)
+
+    if request.method == 'POST':
+        form = ConversationForm(request.POST)
+        if form.is_valid():
+            conv = form.save(commit=False)
+            conv.group = group
+            conv.save()
+            messages.success(request, 'Обсуждение создано')
+            return redirect('films:group_detail', id=group.id)
+    else:
+        form = ConversationForm()
+    return render(request, 'films/conv/create.html',
+                  {'group': group, 'form': form})
+
+
+def conversation_detail(request, id):
+    conv = get_object_or_404(Conversation, id=id)
+
+    messes = conv.message_set.filter(deleted_at=None)
+    messes = paginate(request, messes)
+
+    form = MessageForm()
+    return render(request, 'films/conv/detail.html',
+                  {'conv': conv, 'form': form, 'messes': messes})
+
+
+def conversation_update(request, id):
+    conv = get_object_or_404(Conversation, id=id)
+
+    if not check_superuser_or_admin(request.user, conv.group):
+        messages.error(request, 'У вас недостаточно прав')
+        return redirect('films:group_detail', id=conv.group)
+
+    if request.method == 'POST':
+        form = ConversationForm(request.POST, instance=conv)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Обсуждение переименовано')
+            return redirect('films:group_detail', id=conv.group.id)
+    else:
+        form = ConversationForm(instance=conv)
+    return render(request, 'films/conv/update.html',
+                  {'conv': conv, 'form': form})
+
+
+def conversation_close(request, id):
+    conv = get_object_or_404(Conversation, id=id)
+
+    if not check_superuser_or_admin(request.user, conv.group):
+        messages.error(request, 'У вас недостаточно прав')
+        return redirect('films:conversation_detail', id=id)
+
+    if request.method == 'POST':
+        conv.closed_at = timezone.now()
+        conv.save()
+        messages.success(request, 'Обсуждение закрыто')
+        return redirect('films:conversation_detail', id=id)
+    return render(request, 'films/conv/close.html',
+                  {'conv': conv})
+
+
+def conversation_open(request, id):
+    conv = get_object_or_404(Conversation, id=id)
+
+    if not check_superuser_or_admin(request.user, conv.group):
+        messages.error(request, 'У вас недостаточно прав')
+        return redirect('films:conversation_detail', id=id)
+
+    if request.method == 'POST':
+        conv.closed_at = None
+        conv.save()
+        messages.success(request, 'Обсуждение открыто')
+        return redirect('films:conversation_detail', id=id)
+    return render(request, 'films/conv/open.html',
+                  {'conv': conv})
+
+
+def conversation_delete(request, id):
+    conv = get_object_or_404(Conversation, id=id)
+    group = conv.group
+
+    if not check_superuser_or_admin(request.user, group):
+        messages.error(request, 'У вас недостаточно прав')
+        return redirect('films:group_detail', id=group.id)
+
+    if request.method == 'POST':
+        conv.delete()
+        messages.success(request, 'Обсуждение удалено')
+        return redirect('films:group_detail', id=group.id)
+    return render(request, 'films/conv/delete.html',
+                  {'conv': conv})
+
+
+def message_create(request, conv_id):
+    conv = get_object_or_404(Conversation, id=conv_id)
+
+    if not check_superuser_or_participant(request.user, conv.group):
+        messages.error(request, 'У вас недостаточно прав')
+        return redirect('films:conversation_detail', id=conv_id)
+
+    form = MessageForm(request.POST, request.FILES)
+
+    if form.is_valid():
+        message = form.save(commit=False)
+        message.user = request.user
+        message.conversation = conv
+        message.save()
+        messages.success(request, 'Сообщение добавлено')
+
+    return redirect('films:conversation_detail', id=conv_id)
+
+
+def message_update(request, id):
+    message = get_object_or_404(Message, id=id)
+
+    if request.user != message.user:
+        messages.error(request, 'У вас недостаточно прав')
+        return redirect('films:conversation_detail', id=message.conversation.id)
+
+    if request.method == 'POST':
+        form = MessageForm(request.POST, request.FILES, instance=message)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Сообщение изменено')
+            return redirect('films:conversation_detail', id=message.conversation.id)
+    else:
+        form = MessageForm(instance=message)
+    return render(request, 'films/comment/update.html',
+                  {'mess': message, 'form': form})
+
+
+def message_delete(request, id):
+    message = get_object_or_404(Message, id=id)
+    conv = message.conversation
+
+    if not check_superuser_author_admin(request.user, message):
+        messages.error(request, 'У вас недостаточно прав')
+        return redirect('films:conversation_detail', id=conv.id)
+
+    if request.method == 'POST':
+        message.deleted_at = timezone.now()
+        message.save()
+        messages.success(request, 'Сообщение удалено')
+        return redirect('films:conversation_detail', id=conv.id)
+    return render(request, 'films/comment/delete.html',
+                  {'mess': message})
 
 
 class PersonAutocomplete(autocomplete.Select2QuerySetView):

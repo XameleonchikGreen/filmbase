@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.conf import settings
 import datetime
 
 
@@ -97,3 +98,82 @@ class Film(MyModel):
 
     def __str__(self):
         return self.name
+
+
+class Group(MyModel):
+    name = models.CharField("Имя", max_length=1024)
+    film = models.OneToOneField(Film, on_delete=models.CASCADE,
+                                verbose_name="Фильм группы")
+
+    class Meta:
+        verbose_name = "Группа пользователей"
+        verbose_name_plural = "Группы пользователей"
+
+    def __str__(self):
+        return self.name
+
+
+class Membership(MyModel):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="membership_set",
+    )
+    group = models.ForeignKey(
+        Group,
+        on_delete=models.CASCADE,
+        related_name="membership_set"
+    )
+    is_admin = models.BooleanField(default=False)
+    is_waiter = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        verbose_name = "Участник обсуждения"
+        verbose_name_plural = "Участники обсуждения"
+
+    def __str__(self):
+        return self.user.username + ' в группе фильма ' + self.group.film.name
+
+
+class Conversation(MyModel):
+    name = models.CharField("Обсуждение", max_length=1024)
+    group = models.ForeignKey(
+        Group,
+        on_delete=models.CASCADE,
+        related_name="conversation_set"
+    )
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Обсуждение"
+        verbose_name_plural = "Обсуждения"
+
+    def __str__(self):
+        return self.name + ' (' + self.group.film.name + ')'
+
+
+class Message(MyModel):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE
+    )
+    conversation = models.ForeignKey(
+        Conversation,
+        on_delete=models.CASCADE
+    )
+    image = models.ImageField(
+        "Изображение", upload_to='messages/', blank=True, null=True)
+    text = models.TextField("Сообщение")
+    deleted_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name = "Сообщение"
+        verbose_name_plural = "Сообщения"
+
+    def __str__(self):
+        return ('Комментарий ' + self.user.username +
+                ' в ' + self.conversation.name + '(' +
+                self.conversation.group.film.name + ')')

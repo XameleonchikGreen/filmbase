@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'films.apps.FilmsConfig',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
@@ -132,6 +133,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+LOGIN_URL = "/auth/login"
 LOGIN_REDIRECT_URL = 'films:home'
 
 MEDIA_URL = 'media/'

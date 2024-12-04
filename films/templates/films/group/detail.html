@@ -1,0 +1,137 @@
+{% extends 'films/base.html' %}
+{% load films_tags %}
+{% load django_bootstrap5 %}
+
+{% block breadcrumb %}
+  <nav>
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item">
+        <a href="{% url 'films:film_list' %}">{{ 'films:film'|model_verbose_name_plural }}</a>
+      </li>
+      <li class="breadcrumb-item">
+        <a href="{% url 'films:film_detail' group.film.id %}">{{ group.film.name }}</a>
+      </li>
+      <li class="breadcrumb-item active">{{ group.name }}</li>
+    </ol>
+  </nav>
+{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-header">
+      <h1 class="card-title">Группа фильма «{{ group.film.name }}»</h1>
+    </div>
+    <div class="card-body">
+      <h3>Администраторы:</h3>
+      {% if admins %}
+        <dl class="row">
+          {% for admin in admins %}
+            <dt class="col-md-3 text-md-end">
+              {{ admin.user }}
+            </dt>
+            <dd class="col-md-9">
+              {% if user.is_superuser %}
+              <a href="{% url 'films:group_delete_admin' group.id admin.id %}" class="btn btn-danger btn-sm">
+                <i class="bi-trash"></i>
+                Удалить администраторa
+              </a>
+              {% endif %}
+            </dd>
+          {% endfor %}
+        </dl>
+        {% bootstrap_pagination admins %}
+      {% else %}
+        <p>Нет администраторов</p>
+      {% endif %}
+      {% if user|not_in_group:group %}
+        <div class="alert alert-warning">
+          <h3>Вы не входите в группу фильма «{{ group.film.name }}»</h3>
+          <p>Вы можете просматривать обсуждения, но не можете в них участвовать.</p>
+          <a href="{% url 'films:group_wait' group.id %}" class="btn btn-primary">
+            <i class="bi-plus-lg"></i>
+            Подать заявку на вступление
+          </a>
+        </div>
+      {% endif %}
+      {% if user|group_waiter:group %}
+        <div class="alert alert-info">
+          <h5>Ваша заявка на рассмотрении</h5>
+        </div>
+      {% endif %}
+      {% if user|group_admin_or_superuser:group %}
+        {% if waiters %}
+        <h3>Пользователи, подавшие заявку на вступление:</h3>
+          <dl class="row">
+            {% for waiter in waiters %}
+              <dt class="col-md-3 text-md-end">
+                {{ waiter.user }}
+              </dt>
+              <dd class="col-md-9">
+                <a href="{% url 'films:group_add_user' group.id waiter.id %}" class="btn btn-primary btn-sm">
+                  <i class="bi-plus-lg"></i>
+                  Добавить в группу
+                </a>
+              </dd>
+            {% endfor %}
+          </dl>
+          {% bootstrap_pagination waiters %}
+        {% endif %}
+        <h3>Пользователи в группе:</h3>
+        {% if members %}
+          <dl class="row">
+            {% for member in members %}
+              <dt class="col-md-3 text-md-end">
+                {{ member.user }}
+              </dt>
+              <dd class="col-md-9">
+                {% if user|group_admin_or_superuser:group %}
+                  <a href="{% url 'films:group_delete_user' group.id member.id %}" class="btn btn-danger btn-sm">
+                    <i class="bi-trash"></i>
+                    Удалить из группы
+                  </a>
+                {% endif %}
+                {% if user.is_superuser %}
+                  <a href="{% url 'films:group_new_admin' group.id member.id %}" class="btn btn-success btn-sm">
+                    <i class="bi bi-arrow-left-right"></i>
+                    Назначить администратором
+                  </a>
+                {% endif %}
+              </dd>
+            {% endfor %}
+          </dl>
+          {% bootstrap_pagination members %}
+        {% else %}
+          <p>Нет пользователей</p>
+        {% endif %}
+      {% endif %}
+      <div class="d-grid gap-2 my-4">
+        {% if convs %}
+          {% for conv in convs %}
+          <div class="btn-group btn-group-lg">
+            <a href="{% url 'films:conversation_detail' conv.id %}" class="btn btn-outline-secondary w-100">
+              <h4 class="text-start">{{ conv.name }}</h4>
+            </a>
+            {% if user|group_admin_or_superuser:group %}
+            <a href="{% url 'films:conversation_update' conv.id %}" class="btn btn-primary">
+              <i class="bi-pencil-square"></i>
+            </a>
+            <a href="{% url 'films:conversation_delete' conv.id %}" class="btn btn-danger">
+              <i class="bi-trash"></i>
+            </a>
+            {% endif %}
+          </div>
+          {% endfor %}
+          {% bootstrap_pagination convs %}
+        {% else %}
+          <h2>Обсуждений нет</h2>
+        {% endif %}
+        {% if user|group_admin_or_superuser:group %}
+          <a href="{% url 'films:conversation_create' group.id %}" class="btn btn-primary btn-lg">
+            <i class="bi-plus-lg"></i>
+            Создать обсуждение
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

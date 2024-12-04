@@ -101,6 +101,26 @@
               <iframe src="{{ film.trailer_url }}" title="YouTube video" allowfullscreen></iframe>
             </div>
           {% endif %}
+          <div class="d-grid gap-2">
+            {% if film.group %}
+              <a href="{% url 'films:group_detail' film.group.id %}" class="btn btn-secondary btn-lg">
+                Группа, связанная с фильмом
+              </a>
+              {% if user|group_admin_or_superuser:film.group %}
+                <a href="{% url 'films:group_delete' film.id %}" class="btn btn-danger btn-lg">
+                  <i class="bi-trash"></i>
+                  Удалить группу
+                </a>
+              {% endif %}
+            {% else %}
+              <h2>Нет группы, связанной с фильмом</h2>
+              Вы можете её создать!
+              <a href="{% url 'films:group_create' film.id %}" class="btn btn-primary btn-lg">
+                <i class="bi-plus-lg"></i>
+                Создать группу
+              </a>
+            {% endif %}
+          </div>
         </div>
       </div>
     </div>

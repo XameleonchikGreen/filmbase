@@ -23,7 +23,7 @@
           {{ conv.name }}
         </a>
       </li>
-      <li class="breadcrumb-item">Закрытие обсуждения</li>
+      <li class="breadcrumb-item">Открытие обсуждения</li>
     </ol>
   </nav>
 {% endblock %}
@@ -31,11 +31,11 @@
 {% block content %}
   <div class="alert alert-warning">
     <h4 class="alert-heading">Вы уверены?</h4>
-    <p>Вы уверены, что хотите закрыть обсуждение «{{ conv.name }}»? Пользователи
-    не смогут писать в него сообщения.</p>
+    <p>Вы уверены, что хотите открыть обсуждение «{{ conv.name }}»? Пользователи
+    смогут писать в него сообщения.</p>
     <form method="POST">
       {% csrf_token %}
-      {% bootstrap_button 'Да, закрыть!' button_type='submit' button_class='btn-primary' %}
+      {% bootstrap_button 'Да, открыть!' button_type='submit' button_class='btn-primary' %}
       <a href="{% url 'films:group_detail' conv.group.id %}" class="btn btn-light ms-4">Нет</a>
     </form>
   </div>

@@ -7,6 +7,7 @@ from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from films.models import Country, Genre, Person, Film
 from .get_films import Command as GetCommand
+import io
 
 
 class Command(BaseCommand):
@@ -91,7 +92,7 @@ class Command(BaseCommand):
         return film
 
     def create_films(self):
-        with open(GetCommand.filename(), 'r') as f:
+        with io.open(GetCommand.filename(), 'r', encoding="utf-8") as f:
             films_data = json.load(f)
             for film_data in films_data['docs']:
                 self.create_film(film_data)

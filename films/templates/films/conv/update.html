@@ -1,0 +1,30 @@
+{% extends 'films/base.html' %}
+{% load django_bootstrap5 %}
+{% load films_tags %}
+
+{% block breadcrumb %}
+  <nav>
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item">
+        <a href="{% url 'films:film_list' %}">{{ 'films:film'|model_verbose_name_plural }}</a>
+      </li>
+      <li class="breadcrumb-item">
+        <a href="{% url 'films:film_detail' conv.group.film.id %}">{{ conv.group.film.name }}</a>
+      </li>
+      <li class="breadcrumb-item">
+        <a href="{% url 'films:group_detail' conv.group.id %}">{{ conv.group.name }}</a>
+      </li>
+      <li class="breadcrumb-item active">
+        Редактирование обсуждения
+      </li>
+    </ol>
+  </nav>
+{% endblock %}
+{% block content %}
+  <h1>Редактирование обсуждения</h1>
+  <form method="POST">
+    {% csrf_token %}
+    {% bootstrap_form form layout='floating'%}
+    {% bootstrap_button button_type='submit' content='Сохранить' %}
+  </form>
+{% endblock %}

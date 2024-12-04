@@ -1,6 +1,6 @@
 from django import forms
 from dal import autocomplete
-from .models import Country, Genre, Film, Person
+from .models import Country, Genre, Film, Person, Conversation, Message
 
 
 class CountryForm(forms.ModelForm):
@@ -39,3 +39,15 @@ class PersonForm(forms.ModelForm):
             "birthday": forms.DateInput(attrs={'type': 'date'},
                                         format="%Y-%m-%d")
         }
+
+
+class ConversationForm(forms.ModelForm):
+    class Meta:
+        model = Conversation
+        fields = ['name']
+
+
+class MessageForm(forms.ModelForm):
+    class Meta:
+        model = Message
+        fields = ['text', 'image']
