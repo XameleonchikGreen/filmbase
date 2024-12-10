@@ -13,6 +13,8 @@ def check_admin(user):
 
 
 def check_superuser_or_admin(user, group):
+    if not user.is_authenticated:
+        return False
     memberships = user.membership_set.filter(group=group)
     if memberships.count() == 0:
         return user.is_superuser
@@ -20,12 +22,16 @@ def check_superuser_or_admin(user, group):
 
 
 def check_superuser_or_participant(user, group):
+    if not user.is_authenticated:
+        return False
     memberships = user.membership_set.filter(group=group)
     return (user.is_superuser or
             (memberships.count() > 0 and not memberships[0].is_waiter))
 
 
 def check_superuser_author_admin(user, message):
+    if not user.is_authenticated:
+        return False
     return (check_superuser_or_admin(user, message.conversation.group)
             or user == message.user)
 

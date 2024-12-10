@@ -1,5 +1,7 @@
 from django import template
 from django.apps import apps
+from django.utils.safestring import mark_safe
+import markdown
 
 register = template.Library()
 
@@ -37,6 +39,8 @@ def ru_plural(value, variants):
 
 @register.filter
 def group_admin_or_superuser(user, group):
+    if not user.is_authenticated:
+        return False
     memberships = user.membership_set.filter(group=group)
     if memberships.count() == 0:
         return user.is_superuser
@@ -45,18 +49,29 @@ def group_admin_or_superuser(user, group):
 
 @register.filter
 def not_in_group(user, group):
+    if not user.is_authenticated:
+        return False
     memberships = user.membership_set.filter(group=group)
     return memberships.count() == 0
 
 
 @register.filter
 def group_waiter(user, group):
+    if not user.is_authenticated:
+        return False
     memberships = user.membership_set.filter(group=group)
     return memberships.count() > 0 and memberships[0].is_waiter
 
 
 @register.filter
 def in_group_or_superuser(user, group):
+    if not user.is_authenticated:
+        return False
     memberships = user.membership_set.filter(group=group)
     return (user.is_superuser or
             (memberships.count() > 0 and not memberships[0].is_waiter))
+
+
+@register.filter(name='markdown')
+def markdown_format(text):
+    return mark_safe(markdown.markdown(text))
