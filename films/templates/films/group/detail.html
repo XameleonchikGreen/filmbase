@@ -71,6 +71,10 @@
                   <i class="bi-plus-lg"></i>
                   Добавить в группу
                 </a>
+                <a href="{% url 'films:group_reject_user' group.id waiter.id %}" class="btn btn-danger btn-sm">
+                  <i class="bi-trash"></i>
+                  Отклонить заявку
+                </a>
               </dd>
             {% endfor %}
           </dl>

@@ -328,6 +328,20 @@ def group_add_user(request, group_id, member_id):
     return redirect('films:group_detail', id=group_id)
 
 
+def group_reject_user(request, group_id, member_id):
+    group = get_object_or_404(Group, id=group_id)
+
+    if not check_superuser_or_admin(request.user, group):
+        messages.error(request, 'У вас недостаточно прав')
+        return redirect('films:group_detail', id=group_id)
+
+    member = get_object_or_404(Membership, id=member_id)
+    member.delete()
+
+    messages.success(request, 'Заявка отклонена')
+    return redirect('films:group_detail', id=group_id)
+
+
 def group_delete_user(request, group_id, member_id):
     group = get_object_or_404(Group, id=group_id)
 

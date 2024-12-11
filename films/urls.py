@@ -50,6 +50,8 @@ urlpatterns = [
          views.group_wait, name='group_wait'),
     path('films/<int:group_id>/group_detail/group_add_user/<int:member_id>',
          views.group_add_user, name='group_add_user'),
+    path('films/<int:group_id>/group_detail/group_reject_user/<int:member_id>',
+         views.group_reject_user, name='group_reject_user'),
     path('films/<int:group_id>/group_detail/group_delete_user/<int:member_id>',
          views.group_delete_user, name='group_delete_user'),
     path('films/<int:group_id>/group_detail/group_new_admin/<int:member_id>',
